@@ -1,162 +1,126 @@
-import sys
 from enum import Enum, auto
 
 
-# We will define variables in lowercase as variables with no negation and characters in uppercase as variables in negation
-# -a = A
-# a = a
-
-# Definitions--------------------------------------------------------
-
-# Enum to cover the case:
-# FALSE: The DPLL recursion should go on with false
-# TRUE: The DPLL recursion should go on with true
-# BOTH: The DPLL recursion should go on with both branches
 class RecType(Enum):
     FALSE = auto()
     TRUE = auto()
     BOTH = auto()
 
+## RecType используется для определения типов записей (record types) в NextRec,
+# чтобы указать, какие ветви должны быть продолжены в алгоритме DPLL.
+## RecType определяет три возможных значения: FALSE, TRUE и BOTH, которые указывают,
+# должны ли ветви быть продолжены, только если литерал является ложным, только если он истинен, или в обоих случаях.
+## RecType не используется явно где-либо в коде. Однако он используется неявно в методе get_next_rec,
+# который возвращает объект NextRec, содержащий литерал и его тип (одно из значений RecType).
+## Позже этот объект используется в функции gen_branch, которая определяет,
+# какие литералы должны быть добавлены к ветви, в зависимости от типа NextRec.
 
-# Defining type of recursion.
-# var: defines which variable will be used next
-## type: defines which branches the recursion will take
 class NextRec:
-    def __init__(self, var, recType):
+    def __init__(self, var, rec_type):
         self.var = var
-        self.type = recType
+        self.type = rec_type
+
+## С помощью класса NextRec мы можем получить следующую переменную,
+# которая будет использоваться для дальнейшего выполнения алгоритма.
 
 
-# checks whether a character c exists in character list varlist
-# return True: c doesn't exist in varlist
-# return False: c does exist in varlist
-def setCheck(c, varList):
-    for c_ in varList:
-        if (c == c_):
+def set_check(c, var_list):
+    for c_ in var_list:
+        if c == c_:
             return False
     return True
 
 
-# Gets the next variable to use. If no heuristic it just uses the order of
-# variables in vars to determine which variable is next.
-# If a heuristic is applicable, that heuristic is used.
-def getNextRec(clause, vars):
-    # TODO code for OLR/PLR heuristic
-
+def get_next_rec(clause, vars):
     c = '?'
-
-    clauseVars = ""
+    clause_vars = ""
 
     for lit in clause:
-        clauseVars += lit
+        clause_vars += lit
 
-    clauseVars = clauseVars.lower()
+    clause_vars = clause_vars.lower()
 
     for i in range(len(vars)):
-        if (not setCheck(vars[i], clauseVars)):
+        if not set_check(vars[i], clause_vars):
             c = vars[i]
             break
-
-    # print("Char: " + c)
 
     return NextRec(c, RecType.BOTH)
 
 
-def genBranch(clause, nextRec, bool):
+def gen_branch(clause, next_rec, bool):
     branch = []
 
-    if (bool):
-        # Generation of trueBranch
+    if bool:
         for lit in clause:
-            if (not setCheck(nextRec.var, lit)):
+            if not set_check(next_rec.var, lit):
                 continue
-            temp = lit.replace(nextRec.var.upper(), "")
-            if (setCheck(temp, branch)):
+            temp = lit.replace(next_rec.var.upper(), "")
+            if set_check(temp, branch):
                 branch.append(temp)
     else:
-        # Generation of falseBranch
         for lit in clause:
-            if (not setCheck(nextRec.var.upper(), lit)):
+            if not set_check(next_rec.var.upper(), lit):
                 continue
-            temp = lit.replace(nextRec.var, "")
-            if (setCheck(temp, branch)):
+            temp = lit.replace(next_rec.var, "")
+            if set_check(temp, branch):
                 branch.append(temp)
 
     return branch
 
 
-# Sets the interpretation of var with the value of bool. The value of bool is True, False
-# but inter is an array of 0 and 1
-def setInter(inter, vars, var, bool):
+def set_inter(inter, vars, var, bool):
     for i in range(len(vars)):
-        if (vars[i] == var):
+        if vars[i] == var:
             inter[i] = 1 if bool else 0
 
 
-# Base DPLL
-# clause: a list of strings
-# vars: list of variables (just so that no global vars are used)
-# inter: Interpretation - Belegung in german
-def base_DPLL(clause, vars, inter):
-    # Checks whether to end Recursion
-    if (len(clause) == 0):
-        print(vars)
-        print(inter)
+def base_dpll(clause, vars, inter):
+    if len(clause) == 0:
+        with open("output.txt", 'w') as f:
+            f.write(str(vars) + '\n')
+            f.write(str(inter) + '\n')
         return True
     else:
         for lit in clause:
-            if (lit == ""):
+            if lit == "":
                 return False
 
-    # print(vars)
-    # print(clause)
+    next_rec = get_next_rec(clause, vars)
 
-    nextRec = getNextRec(clause, vars)
+    if next_rec.type == RecType.TRUE or next_rec.type == RecType.BOTH:
+        true_branch = gen_branch(clause, next_rec, True)
+        set_inter(inter, vars, next_rec.var, True)
 
-    if (nextRec.type == RecType.TRUE or nextRec.type == RecType.BOTH):
-        # Generation of trueBranch
-        trueBranch = genBranch(clause, nextRec, True)
-        setInter(inter, vars, nextRec.var, True)
-
-        if (base_DPLL(trueBranch, vars, inter)):
+        if base_dpll(true_branch, vars, inter):
             return True
 
-    if (nextRec.type == RecType.FALSE or nextRec.type == RecType.BOTH):
-        # Generation of falseBranch
-        falseBranch = genBranch(clause, nextRec, False)
-        setInter(inter, vars, nextRec.var, False)
+    if next_rec.type == RecType.FALSE or next_rec.type == RecType.BOTH:
+        false_branch = gen_branch(clause, next_rec, False)
+        set_inter(inter, vars, next_rec.var, False)
 
-        if (base_DPLL(falseBranch, vars, inter)):
+        if base_dpll(false_branch, vars, inter):
             return True
 
     return False
 
 
-# Initializing function
-def DPLL(clause, vars):
+def dpll(clause, vars):
     inter = []
     for v in vars:
-        inter.append(-1)  # -1 if an interpretation isnt assigned
-    base_DPLL(clause, vars, inter)
+        inter.append(-1)
+    base_dpll(clause, vars, inter)
     return
 
 
-# Global Variables---------------------------------------------------
+def main():
+    with open('input.txt') as f:
+        g_args = f.readline().strip().split()
 
-# CLI Arguments
-g_args = sys.argv[1:]
+    g_vars = sorted(list(set([c.lower() for arg in g_args for c in arg])))
 
-# Later will be the list of variables
-g_vars = []
+    dpll(g_args, g_vars)
 
-# Code---------------------------------------------------------------
 
-# Generation of variable list
-for arg in g_args:
-    temp = arg.lower()
-    for c in temp:
-        if (setCheck(c, g_vars)):
-            g_vars.append(c)
-g_vars.sort()
-
-DPLL(g_args, g_vars)
+if __name__ == '__main__':
+    main()
