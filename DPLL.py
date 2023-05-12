@@ -1,10 +1,12 @@
 from enum import Enum, auto
+from time import perf_counter
 
 
 class RecType(Enum):
     FALSE = auto()
     TRUE = auto()
     BOTH = auto()
+
 
 ## RecType используется для определения типов записей (record types) в NextRec,
 # чтобы указать, какие ветви должны быть продолжены в алгоритме DPLL.
@@ -20,6 +22,7 @@ class NextRec:
         self.var = var
         self.type = rec_type
 
+
 ## С помощью класса NextRec мы можем получить следующую переменную,
 # которая будет использоваться для дальнейшего выполнения алгоритма.
 
@@ -33,12 +36,12 @@ def set_check(c, var_list):
 
 def get_next_rec(clause, vars):
     c = '?'
-    clause_vars = ""
+    clause_vars = []
 
     for lit in clause:
         clause_vars += lit
 
-    clause_vars = clause_vars.lower()
+    clause_vars = [i.lower() for i in clause_vars]
 
     for i in range(len(vars)):
         if not set_check(vars[i], clause_vars):
@@ -55,14 +58,20 @@ def gen_branch(clause, next_rec, bool):
         for lit in clause:
             if not set_check(next_rec.var, lit):
                 continue
-            temp = lit.replace(next_rec.var.upper(), "")
+            temp = lit.copy()
+            if (biba := next_rec.var.upper()) in temp:
+                temp.remove(biba)
+
             if set_check(temp, branch):
                 branch.append(temp)
     else:
         for lit in clause:
             if not set_check(next_rec.var.upper(), lit):
                 continue
-            temp = lit.replace(next_rec.var, "")
+            temp = lit.copy()
+            if (biba := next_rec.var) in temp:
+                temp.remove(biba)
+
             if set_check(temp, branch):
                 branch.append(temp)
 
@@ -77,13 +86,13 @@ def set_inter(inter, vars, var, bool):
 
 def base_dpll(clause, vars, inter):
     if len(clause) == 0:
-        with open("output.txt", 'w') as f:
+        with open("output.txt", 'w', encoding='UTF-8') as f:
             f.write(str(vars) + '\n')
             f.write(str(inter) + '\n')
         return True
     else:
         for lit in clause:
-            if lit == "":
+            if not lit:
                 return False
 
     next_rec = get_next_rec(clause, vars)
@@ -107,19 +116,26 @@ def base_dpll(clause, vars, inter):
 
 def dpll(clause, vars):
     inter = []
-    for v in vars:
+    for _ in vars:
         inter.append(-1)
     base_dpll(clause, vars, inter)
     return
 
 
 def main():
-    with open('input.txt') as f:
-        g_args = f.readline().strip().split()
-
-    g_vars = sorted(list(set([c.lower() for arg in g_args for c in arg])))
-
+    with open('input.txt', encoding='UTF-8') as f:
+        args = f.readline().strip().split()
+        g_args = []
+        g_vars = []
+        for arg in args:
+            nums_of_arg = arg.lower().strip().split('x')[1:]
+            xes = [c for c in arg if c == 'X' or c == 'x']
+            g_args.append([a[0] + a[1] for a in zip(xes, nums_of_arg)])
+            g_vars.extend([a[0] + a[1] for a in zip([c.lower() for c in arg if c == 'X' or c == 'x'], nums_of_arg)])
+        g_vars = sorted(list(set(g_vars)))
+    t = perf_counter()
     dpll(g_args, g_vars)
+    print(perf_counter() - t)
 
 
 if __name__ == '__main__':
