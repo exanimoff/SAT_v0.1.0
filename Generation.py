@@ -20,7 +20,7 @@ def generate_expression(variables):
 
 # Генерация случайной логической формулы в КНФ
 def generate_knf_formula(num_vars, num_clauses, clause_size):
-    variables = symbols('a:%d' % num_vars)
+    variables = symbols('x:%d' % num_vars)
     clauses = []
     for _ in range(num_clauses):
         clause = []
@@ -33,8 +33,19 @@ def generate_knf_formula(num_vars, num_clauses, clause_size):
         clauses.append(Or(*clause))
     expr = And(*clauses)
     cnf_expr = to_cnf(expr)
-    return cnf_expr
+    return str(cnf_expr)
 
+# Преобразование строки к нужному виду
+def transform_formula(formula_str):
+    # Удаляем пробелы
+    formula_str = formula_str.replace(' ', '')
+    # Удаляем символы "~" и "|"
+    formula_str = formula_str.replace('~x', 'X').replace('|', '')
+    # Заменяем символ "&" на пробел
+    formula_str = formula_str.replace('&', ' ')
+    formula_str = formula_str.replace('(', '').replace(')', '')
+    return formula_str
 # Пример использования
-cnf_expr = generate_knf_formula(50, 20, 6)
+cnf_expr = generate_knf_formula(50, 30, 3)
 print(cnf_expr)
+print(transform_formula(str(cnf_expr)))
